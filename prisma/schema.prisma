@@ -28,12 +28,14 @@ model User {
 }
 
 model Product {
-  id          String  @id @default(uuid())
+  id          String     @id @default(uuid())
   title       String
   description String?
   price       Float
   stock       Int
   image       String?
+
+  categories  Category[] @relation("ProductCategories")
 
   orders Order[]
 
@@ -42,7 +44,6 @@ model Product {
 
   @@map("products") 
 }
-
 model Order {
   id        String @id @default(uuid())
 
@@ -60,6 +61,23 @@ model Order {
   updatedAt DateTime @updatedAt
 
   @@map("orders") 
+}
+
+
+model Category {
+  id        String     @id @default(uuid())
+  name      String
+  parentId  String?
+
+  parent    Category?  @relation("CategoryHierarchy", fields: [parentId], references: [id])
+  children  Category[] @relation("CategoryHierarchy")
+
+  products  Product[]  @relation("ProductCategories")
+
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  @@map("categories")
 }
 
 

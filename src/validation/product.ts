@@ -6,6 +6,7 @@ export const createProductSchema = z.object({
   price: z.coerce.number().positive("Price must be > 0"),
   stock: z.coerce.number().int().nonnegative(),
   image: z.string().optional(),
+  categoryIds: z.array(z.string()).optional(),
 });
 
 export const updateProductSchema = z.object({
