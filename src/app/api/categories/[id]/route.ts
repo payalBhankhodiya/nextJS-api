@@ -70,26 +70,33 @@ export async function PUT(
 }
 
 // DELETE
-export async function DELETE(
-  req: Request,
-  { params }: { params: Promise<{ id: string }> },
-) {
+export async function DELETE(req: Request) {
   try {
-    const { id } = await params;
+    const body = await req.json();
+    const ids: string[] = body.ids;
 
-    const category = await prisma.category.findUnique({
-      where: { id },
-    });
-
-    if (!category) {
-      return NextResponse.json({ message: "Not found" }, { status: 404 });
+    // validation
+    if (!Array.isArray(ids) || ids.length === 0) {
+      return NextResponse.json({ message: "Invalid input" }, { status: 400 });
     }
 
-    await prisma.category.delete({
-      where: { id },
+    // limit size
+    if (ids.length > 10) {
+      return NextResponse.json({ message: "Too many items" }, { status: 400 });
+    }
+
+    const result = await prisma.category.deleteMany({
+      where: {
+        id: {
+          in: ids,
+        },
+      },
     });
 
-    return NextResponse.json({ message: "Deleted successfully" });
+    return NextResponse.json({
+      message: "Deleted successfully",
+      count: result.count,
+    });
   } catch {
     return NextResponse.json(
       { message: "Something went wrong" },
