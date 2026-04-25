@@ -1,10 +1,14 @@
 import { prisma } from "@/lib/prisma";
+import { requireRoles } from "@/lib/require-role";
+import { NextRequest, NextResponse } from "next/server";
 
 export async function GET(
-  _req: Request,
+  req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
+    const currentUser = await requireRoles(req, ["ADMIN", "USER"]);
+
     const { id: orderId } = await params;
 
     const order = await prisma.order.findUnique({
@@ -16,24 +20,42 @@ export async function GET(
     });
 
     if (!order) {
-      return Response.json({ message: "Order not found" }, { status: 404 });
+      return NextResponse.json({ message: "Order not found" }, { status: 404 });
+    }
+
+    if (currentUser.role !== "ADMIN" && order.userId !== currentUser.userId) {
+      return NextResponse.json({ message: "Forbidden" }, { status: 403 });
     }
 
     const invoice = {
       invoiceId: "INV-" + order.id.slice(0, 6),
-      customer: order.userId,
-      product: order.product.title,
+      customer: {
+        id: order.user.id,
+        name: order.user.name,
+        email: order.user.email,
+      },
+      product: {
+        title: order.product.title,
+        price: order.product.price,
+      },
       quantity: order.quantity,
-      price: order.product.price,
       total: order.total,
       date: order.createdAt,
     };
 
-    return Response.json({
+    return NextResponse.json({
       message: "Invoice generated",
       data: invoice,
     });
-  } catch (error: any) {
-    return Response.json({ message: error.message }, { status: 500 });
+  } catch (err: any) {
+    if (err.message === "UNAUTHORIZED") {
+      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+    }
+
+    if (err.message === "FORBIDDEN") {
+      return NextResponse.json({ message: "Forbidden" }, { status: 403 });
+    }
+
+    return NextResponse.json({ message: err.message }, { status: 500 });
   }
 }

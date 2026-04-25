@@ -1,30 +1,36 @@
 import { prisma } from "@/lib/prisma";
+import { requireRoles } from "@/lib/require-role";
+import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
+
+const schema = z.object({
+  productIds: z.array(z.uuid()).min(1).max(10),
+  categoryIds: z.array(z.uuid()).min(1).max(5),
+});
 
 // Assign category to product
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
   try {
-    const { productIds, categoryIds } = await req.json();
+    await requireRoles(req, ["ADMIN"]);
 
-    // validation
-    if (
-      !Array.isArray(productIds) ||
-      productIds.length === 0 ||
-      !Array.isArray(categoryIds) ||
-      categoryIds.length === 0
-    ) {
-      return Response.json(
-        { message: "productIds and categoryIds are required" },
+    const body = await req.json();
+
+    const result = schema.safeParse(body);
+
+    if (!result.success) {
+      return NextResponse.json(
+        {
+          message: "Validation error",
+          errors: result.error.issues,
+        },
         { status: 400 },
       );
     }
 
-    // safety limits
-    if (productIds.length > 10 || categoryIds.length > 5) {
-      return Response.json({ message: "Too many items" }, { status: 400 });
-    }
+    const { productIds, categoryIds } = result.data;
 
     // transaction
-    const result = await prisma.$transaction(async (tx) => {
+    const resultTx = await prisma.$transaction(async (tx) => {
       const products = await tx.product.findMany({
         where: { id: { in: productIds } },
         select: { id: true },
@@ -61,12 +67,20 @@ export async function POST(req: Request) {
 
     return Response.json({
       message: "Bulk assignment successful",
-      ...result,
+      ...resultTx,
     });
-  } catch (error: any) {
-    return Response.json(
+  } catch (err: any) {
+    if (err.message === "UNAUTHORIZED") {
+      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+    }
+
+    if (err.message === "FORBIDDEN") {
+      return NextResponse.json({ message: "Forbidden" }, { status: 403 });
+    }
+
+    return NextResponse.json(
       {
-        message: error.message || "Something went wrong",
+        message: err.message || "Something went wrong",
       },
       { status: 500 },
     );

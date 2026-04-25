@@ -1,14 +1,18 @@
 import { prisma } from "@/lib/prisma";
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { updateCategorySchema } from "@/validation/category";
+import { requireRoles } from "@/lib/require-role";
 
 // GET by id
 export async function GET(
-  _req: Request,
+  req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
+    await requireRoles(req, ["ADMIN", "USER"]);
+
     const { id } = await params;
+
     const category = await prisma.category.findUnique({
       where: { id },
     });
@@ -18,7 +22,15 @@ export async function GET(
     }
 
     return NextResponse.json(category);
-  } catch {
+  } catch (err: any) {
+    if (err.message === "UNAUTHORIZED") {
+      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+    }
+
+    if (err.message === "FORBIDDEN") {
+      return NextResponse.json({ message: "Forbidden" }, { status: 403 });
+    }
+
     return NextResponse.json(
       { message: "Something went wrong" },
       { status: 500 },
@@ -28,10 +40,12 @@ export async function GET(
 
 // UPDATE
 export async function PUT(
-  req: Request,
+  req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
+    await requireRoles(req, ["ADMIN"]);
+
     const { id } = await params;
     const body = await req.json();
 
@@ -55,13 +69,34 @@ export async function PUT(
       return NextResponse.json({ message: "Not found" }, { status: 404 });
     }
 
+    const { name } = result.data;
+
+    const exists = await prisma.category.findUnique({
+      where: { name },
+    });
+
+    if (exists && exists.id !== id) {
+      return NextResponse.json(
+        { message: "Category already exists" },
+        { status: 409 },
+      );
+    }
+
     const updated = await prisma.category.update({
       where: { id },
-      data: { name: body.name },
+      data: { name },
     });
 
     return NextResponse.json(updated);
-  } catch {
+  } catch (err: any) {
+    if (err.message === "UNAUTHORIZED") {
+      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+    }
+
+    if (err.message === "FORBIDDEN") {
+      return NextResponse.json({ message: "Forbidden" }, { status: 403 });
+    }
+
     return NextResponse.json(
       { message: "Something went wrong" },
       { status: 500 },
@@ -70,8 +105,11 @@ export async function PUT(
 }
 
 // DELETE
-export async function DELETE(req: Request) {
+export async function DELETE(req: NextRequest) {
   try {
+
+    await requireRoles(req, ["ADMIN"]);
+
     const body = await req.json();
     const ids: string[] = body.ids;
 
@@ -97,10 +135,24 @@ export async function DELETE(req: Request) {
       message: "Deleted successfully",
       count: result.count,
     });
-  } catch {
+  }catch (err: any) {
+    if (err.message === "UNAUTHORIZED") {
+      return NextResponse.json(
+        { message: "Unauthorized" },
+        { status: 401 }
+      );
+    }
+
+    if (err.message === "FORBIDDEN") {
+      return NextResponse.json(
+        { message: "Forbidden" },
+        { status: 403 }
+      );
+    }
+
     return NextResponse.json(
       { message: "Something went wrong" },
-      { status: 500 },
+      { status: 500 }
     );
   }
 }

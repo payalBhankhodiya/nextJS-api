@@ -1,14 +1,18 @@
 import { prisma } from "@/lib/prisma";
-import { NextResponse } from "next/server";
+import { NextResponse, NextRequest } from "next/server";
 import { updateOrderSchema } from "@/validation/order";
+import { requireRoles } from "@/lib/require-role";
 
-// GET order
+// GET order by id
 export async function GET(
-  _req: Request,
+  req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
+    const currentUser = await requireRoles(req, ["ADMIN", "USER"]);
+
     const { id } = await params;
+
     const order = await prisma.order.findUnique({
       where: { id },
       include: {
@@ -20,20 +24,35 @@ export async function GET(
     if (!order) {
       return NextResponse.json({ message: "Not found" }, { status: 404 });
     }
+    if (currentUser.role !== "ADMIN" && order.userId !== currentUser.userId) {
+      return NextResponse.json({ message: "Forbidden" }, { status: 403 });
+    }
 
     return NextResponse.json(order);
-  } catch {
-    return NextResponse.json({ message: "Server error" }, { status: 500 });
+  } catch (err: any) {
+    if (err.message === "UNAUTHORIZED") {
+      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+    }
+
+    if (err.message === "FORBIDDEN") {
+      return NextResponse.json({ message: "Forbidden" }, { status: 403 });
+    }
+
+    return NextResponse.json(
+      { message: "Error fetching orders" },
+      { status: 500 },
+    );
   }
 }
 
 // UPDATE order status only
 
 export async function PUT(
-  req: Request,
+  req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
+    await requireRoles(req, ["ADMIN"]);
     const { id } = await params;
     const body = await req.json();
 
@@ -67,20 +86,31 @@ export async function PUT(
     });
 
     return NextResponse.json(updated);
-  } catch (error) {
-    console.error("UPDATE ORDER ERROR:", error);
+  } catch (err: any) {
+    if (err.message === "UNAUTHORIZED") {
+      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+    }
 
-    return NextResponse.json({ message: "Server error" }, { status: 500 });
+    if (err.message === "FORBIDDEN") {
+      return NextResponse.json({ message: "Forbidden" }, { status: 403 });
+    }
+
+    return NextResponse.json(
+      { message: "Error updating order" },
+      { status: 500 },
+    );
   }
 }
 
 // DELETE order
 
 export async function DELETE(
-  _req: Request,
+  req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
+    const currentUser = await requireRoles(req, ["ADMIN", "USER"]);
+
     const { id } = await params;
 
     const order = await prisma.order.findUnique({
@@ -91,6 +121,17 @@ export async function DELETE(
       return NextResponse.json({ message: "Order not found" }, { status: 404 });
     }
 
+    if (currentUser.role !== "ADMIN" && order.userId !== currentUser.userId) {
+      return NextResponse.json({ message: "Forbidden" }, { status: 403 });
+    }
+
+    if (currentUser.role !== "ADMIN" && order.status !== "PENDING") {
+      return NextResponse.json(
+        { message: "You can only delete pending orders" },
+        { status: 400 },
+      );
+    }
+
     await prisma.order.delete({
       where: { id },
     });
@@ -98,9 +139,24 @@ export async function DELETE(
     return NextResponse.json({
       message: "Order deleted successfully",
     });
-  } catch (error) {
-    console.error("DELETE ORDER ERROR:", error);
+  } catch (err: any) {
+    if (err.message === "UNAUTHORIZED") {
+      return NextResponse.json(
+        { message: "Unauthorized" },
+        { status: 401 }
+      );
+    }
 
-    return NextResponse.json({ message: "Server error" }, { status: 500 });
+    if (err.message === "FORBIDDEN") {
+      return NextResponse.json(
+        { message: "Forbidden" },
+        { status: 403 }
+      );
+    }
+
+    return NextResponse.json(
+      { message: "Error deleting order" },
+      { status: 500 }
+    );
   }
 }

@@ -1,14 +1,14 @@
 import { prisma } from "@/lib/prisma";
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { createProductSchema } from "@/validation/product";
-import { NextRequest } from "next/server";
+import { requireRoles } from "@/lib/require-role";
 
 // CREATE product
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
   try {
+    await requireRoles(req, ["ADMIN"]);
     const body = await req.json();
 
-   
     const result = createProductSchema.safeParse(body);
 
     if (!result.success) {
@@ -17,7 +17,7 @@ export async function POST(req: Request) {
           message: "Validation error",
           errors: result.error.issues,
         },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -35,23 +35,32 @@ export async function POST(req: Request) {
         },
       },
       include: {
-        categories: true, 
+        categories: true,
       },
     });
 
     return NextResponse.json(product, { status: 201 });
-  } catch {
+  } catch (err: any) {
+    if (err.message === "UNAUTHORIZED") {
+      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+    }
+
+    if (err.message === "FORBIDDEN") {
+      return NextResponse.json({ message: "Forbidden" }, { status: 403 });
+    }
+
     return NextResponse.json(
-      { message: "Error creating product" },
-      { status: 500 }
+      { message: "Error creating products" },
+      { status: 500 },
     );
   }
-};
-
-
+}
 
 export async function GET(req: NextRequest) {
   try {
+    // requireRoles(req: NextRequest, roles: Role[])
+
+    await requireRoles(req, ["ADMIN", "USER"]);
     const { searchParams } = new URL(req.url);
 
     const categoryIds = searchParams.getAll("category");
@@ -85,14 +94,18 @@ export async function GET(req: NextRequest) {
     });
 
     return NextResponse.json(products, { status: 200 });
-  } catch (error) {
-    console.error(error);
+  } catch (err: any) {
+    if (err.message === "UNAUTHORIZED") {
+      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+    }
+
+    if (err.message === "FORBIDDEN") {
+      return NextResponse.json({ message: "Forbidden" }, { status: 403 });
+    }
+
     return NextResponse.json(
       { message: "Error fetching products" },
-      { status: 500 }
+      { status: 500 },
     );
   }
-};
-
-
-
+}

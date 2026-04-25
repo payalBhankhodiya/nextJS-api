@@ -4,6 +4,7 @@ import { OrderStatus } from "../../generated/prisma/enums";
 export const createOrderSchema = z.object({
   userId: z.uuid(),
   productId: z.uuid(),
+  addressId: z.uuid(),
   quantity: z.coerce.number().int().positive(),
 });
 

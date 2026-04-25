@@ -1,10 +1,13 @@
 import { prisma } from "@/lib/prisma";
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { createCategorySchema } from "@/validation/category";
+import { requireRoles } from "@/lib/require-role";
 
 // CREATE category
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
   try {
+    await requireRoles(req, ["ADMIN"]);
+
     const body = await req.json();
 
     const result = createCategorySchema.safeParse(body);
@@ -19,6 +22,19 @@ export async function POST(req: Request) {
       );
     }
 
+    const { name } = result.data;
+
+    const existing = await prisma.category.findUnique({
+      where: { name },
+    });
+
+    if (existing) {
+      return NextResponse.json(
+        { message: "Category already exists" },
+        { status: 409 },
+      );
+    }
+
     const category = await prisma.category.create({
       data: {
         name: body.name,
@@ -26,7 +42,15 @@ export async function POST(req: Request) {
     });
 
     return NextResponse.json(category, { status: 201 });
-  } catch {
+  } catch (err: any) {
+    if (err.message === "UNAUTHORIZED") {
+      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+    }
+
+    if (err.message === "FORBIDDEN") {
+      return NextResponse.json({ message: "Forbidden" }, { status: 403 });
+    }
+
     return NextResponse.json(
       { message: "Error creating category" },
       { status: 500 },
@@ -35,11 +59,18 @@ export async function POST(req: Request) {
 }
 
 // GET all categories
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
+    await requireRoles(req, ["ADMIN", "USER"]);
+
     const categories = await prisma.category.findMany({
       orderBy: { createdAt: "desc" },
-      include: {
+      select: {
+        id: true,
+        name: true,
+        parentId: true,
+        createdAt: true,
+        updatedAt: true,
         _count: {
           select: {
             products: true,
@@ -49,17 +80,19 @@ export async function GET() {
     });
 
     const formatted = categories.map((cat) => ({
-      id: cat.id,
-      name: cat.name,
-      parentId: cat.parentId,
-      createdAt: cat.createdAt,
-      updatedAt: cat.updatedAt,
+      ...cat,
       productCount: cat._count.products,
     }));
 
     return NextResponse.json(formatted);
-  } catch (error) {
-    console.error("GET_CATEGORIES_ERROR:", error);
+  } catch (err: any) {
+    if (err.message === "UNAUTHORIZED") {
+      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+    }
+
+    if (err.message === "FORBIDDEN") {
+      return NextResponse.json({ message: "Forbidden" }, { status: 403 });
+    }
 
     return NextResponse.json(
       { message: "Error fetching categories" },

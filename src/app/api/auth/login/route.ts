@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { comparePassword, signToken } from "@/lib/auth";
-
 import { loginSchema } from "@/validation/user";
 
 export async function POST(req: Request) {
@@ -41,7 +40,7 @@ export async function POST(req: Request) {
     }
 
     // Create token
-    const token = signToken(user.id);
+    const token = signToken(user.id, user.role);
 
     // Set cookie
     const response = NextResponse.json(
@@ -74,3 +73,6 @@ export async function POST(req: Request) {
     );
   }
 }
+
+
+

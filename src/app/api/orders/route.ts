@@ -1,10 +1,17 @@
 import { prisma } from "@/lib/prisma";
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { createOrderSchema } from "@/validation/order";
+import { requireRoles } from "@/lib/require-role";
 
 // CREATE order
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
   try {
+    const currentUser = await requireRoles(req, ["USER"]);
+
+    console.log("CURRENT USER:", currentUser);
+
+  
+
     const body = await req.json();
 
     const result = createOrderSchema.safeParse(body);
@@ -19,12 +26,15 @@ export async function POST(req: Request) {
       );
     }
 
-    const { userId, productId, quantity } = result.data;
+    const { productId, addressId, quantity } = result.data;
 
-    // check user + product in parallel
-    const [user, product] = await Promise.all([
+    const userId = currentUser.userId;
+
+    // check user + product + address in parallel
+    const [user, product, address] = await Promise.all([
       prisma.user.findUnique({ where: { id: userId } }),
       prisma.product.findUnique({ where: { id: productId } }),
+      prisma.address.findUnique({ where: { id: addressId } }),
     ]);
 
     if (!user) {
@@ -38,6 +48,14 @@ export async function POST(req: Request) {
       );
     }
 
+    if (!address) {
+      return NextResponse.json(
+        { message: "Address not found" },
+        { status: 404 },
+      );
+    }
+
+    // stock check
     if (product.stock < quantity) {
       return NextResponse.json(
         { message: "Not enough stock" },
@@ -53,6 +71,7 @@ export async function POST(req: Request) {
         data: {
           userId,
           productId,
+          addressId,
           quantity,
           total,
         },
@@ -71,21 +90,51 @@ export async function POST(req: Request) {
     });
 
     return NextResponse.json(order, { status: 201 });
-  } catch {
+  } catch (err: any) {
+    if (err.message === "UNAUTHORIZED") {
+      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+    }
+
+    if (err.message === "FORBIDDEN") {
+      return NextResponse.json({ message: "Forbidden" }, { status: 403 });
+    }
+
     return NextResponse.json(
-      { message: "Error creating order" },
+      { message: "Error creating orders" },
       { status: 500 },
     );
   }
 }
 
 // GET all orders
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
-    const orders = await prisma.order.findMany();
+    const currentUser = await requireRoles(req, ["ADMIN", "USER"]);
 
-    return NextResponse.json(orders);
-  } catch {
+    console.log("CURRENT USER:", currentUser);
+
+    let orders;
+
+    if (currentUser.role === "ADMIN") {
+      orders = await prisma.order.findMany();
+    } else {
+      orders = await prisma.order.findMany({
+        where: {
+          userId: currentUser.userId,
+        },
+      });
+    }
+
+    return NextResponse.json(orders, { status: 200 });
+  } catch (err: any) {
+    if (err.message === "UNAUTHORIZED") {
+      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+    }
+
+    if (err.message === "FORBIDDEN") {
+      return NextResponse.json({ message: "Forbidden" }, { status: 403 });
+    }
+
     return NextResponse.json(
       { message: "Error fetching orders" },
       { status: 500 },

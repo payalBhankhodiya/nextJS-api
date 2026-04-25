@@ -1,14 +1,15 @@
 import { prisma } from "@/lib/prisma";
-import { NextResponse } from "next/server";
-
+import { NextRequest, NextResponse } from "next/server";
 import { updateProductSchema } from "@/validation/product";
+import { requireRoles } from "@/lib/require-role";
 
 // GET product by ID
 export async function GET(
-  _req: Request,
+  req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
+    await requireRoles(req, ["ADMIN", "USER"]);
     const { id } = await params;
     const product = await prisma.product.findUnique({
       where: { id },
@@ -19,17 +20,29 @@ export async function GET(
     }
 
     return NextResponse.json(product);
-  } catch {
-    return NextResponse.json({ message: "Server error" }, { status: 500 });
+  } catch (err: any) {
+    if (err.message === "UNAUTHORIZED") {
+      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+    }
+
+    if (err.message === "FORBIDDEN") {
+      return NextResponse.json({ message: "Forbidden" }, { status: 403 });
+    }
+
+    return NextResponse.json(
+      { message: "Error fetching products" },
+      { status: 500 },
+    );
   }
 }
 
 // UPDATE product
 export async function PUT(
-  req: Request,
+  req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
+    await requireRoles(req, ["ADMIN"]);
     const { id } = await params;
     const body = await req.json();
 
@@ -70,19 +83,29 @@ export async function PUT(
     });
 
     return NextResponse.json(updated);
-  } catch (error) {
-    console.error("UPDATE PRODUCT ERROR:", error);
+  } catch (err: any) {
+    if (err.message === "UNAUTHORIZED") {
+      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+    }
 
-    return NextResponse.json({ message: "Server error" }, { status: 500 });
+    if (err.message === "FORBIDDEN") {
+      return NextResponse.json({ message: "Forbidden" }, { status: 403 });
+    }
+
+    return NextResponse.json(
+      { message: "Error updating products" },
+      { status: 500 },
+    );
   }
 }
 
 // DELETE product
 export async function DELETE(
-  _req: Request,
+  req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
+    await requireRoles(req, ["ADMIN"]);
     const { id } = await params;
 
     const product = await prisma.product.findUnique({
@@ -101,9 +124,18 @@ export async function DELETE(
     });
 
     return NextResponse.json(deleted);
-  } catch (error) {
-    console.error("DELETE PRODUCT ERROR:", error);
+  } catch (err: any) {
+    if (err.message === "UNAUTHORIZED") {
+      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+    }
 
-    return NextResponse.json({ message: "Server error" }, { status: 500 });
+    if (err.message === "FORBIDDEN") {
+      return NextResponse.json({ message: "Forbidden" }, { status: 403 });
+    }
+
+    return NextResponse.json(
+      { message: "Error deleting products" },
+      { status: 500 },
+    );
   }
 }
