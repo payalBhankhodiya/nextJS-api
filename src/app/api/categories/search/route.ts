@@ -27,7 +27,7 @@ export async function GET(req: NextRequest) {
       take: 10,
     });
 
-    return Response.json(categories);
+    return NextResponse.json(categories);
   } catch (err: any) {
     if (err.message === "UNAUTHORIZED") {
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 });

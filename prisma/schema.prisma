@@ -59,7 +59,8 @@ model Product {
   description String?
   price       Float
   stock       Int
-  image       String?
+
+  images      Image[]
 
   categories  Category[] @relation("ProductCategories")
 
@@ -69,6 +70,22 @@ model Product {
   updatedAt DateTime @updatedAt
 
   @@map("products") 
+}
+
+model Image {
+  id        String   @id @default(uuid())
+  url       String
+  width     Int
+  height    Int 
+  size      String  
+
+  productId String?
+  product   Product? @relation(fields: [productId], references: [id])
+
+  createdAt DateTime @default(now())
+
+  @@index([productId])
+  @@map("images")
 }
 model Order {
   id        String @id @default(uuid())

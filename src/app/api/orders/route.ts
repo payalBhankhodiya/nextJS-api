@@ -10,8 +10,6 @@ export async function POST(req: NextRequest) {
 
     console.log("CURRENT USER:", currentUser);
 
-  
-
     const body = await req.json();
 
     const result = createOrderSchema.safeParse(body);

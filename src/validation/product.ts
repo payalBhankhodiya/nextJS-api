@@ -5,7 +5,7 @@ export const createProductSchema = z.object({
   description: z.string().optional(),
   price: z.coerce.number().positive("Price must be > 0"),
   stock: z.coerce.number().int().nonnegative(),
-  image: z.string().optional(),
+  imageIds: z.array(z.uuid()).optional(),
   categoryIds: z.array(z.string()).optional(),
 });
 
@@ -14,5 +14,10 @@ export const updateProductSchema = z.object({
   description: z.string().optional(),
   price: z.coerce.number().positive().optional(),
   stock: z.coerce.number().int().nonnegative().optional(),
-  image: z.string().optional(),
+  imageIds: z.array(z.uuid()).optional(),
+  categoryIds: z.array(z.string()).optional(),
 });
+
+
+
+

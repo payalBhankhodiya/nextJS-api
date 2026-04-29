@@ -29,13 +29,16 @@ export async function POST(req: NextRequest) {
         description: data.description ?? null,
         price: data.price,
         stock: data.stock,
-        image: data.image ?? null,
+        images: {
+          connect: data.imageIds?.map((id) => ({ id })) || [],
+        },
         categories: {
           connect: data.categoryIds?.map((id) => ({ id })) || [],
         },
       },
       include: {
         categories: true,
+        images: true,
       },
     });
 
@@ -56,6 +59,7 @@ export async function POST(req: NextRequest) {
   }
 }
 
+// Get all products
 export async function GET(req: NextRequest) {
   try {
     // requireRoles(req: NextRequest, roles: Role[])
@@ -90,6 +94,7 @@ export async function GET(req: NextRequest) {
       where,
       include: {
         categories: true,
+        images: true,
       },
     });
 

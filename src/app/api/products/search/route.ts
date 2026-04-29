@@ -10,7 +10,7 @@ export async function GET(req: NextRequest) {
     const categoryName = searchParams.get("category");
 
     if (!categoryName) {
-      return Response.json({ error: "Category required" }, { status: 400 });
+      return NextResponse.json({ error: "Category required" }, { status: 400 });
     }
 
     const categories = await prisma.category.findMany({
@@ -51,7 +51,7 @@ export async function GET(req: NextRequest) {
       },
     });
 
-    return Response.json(products);
+    return NextResponse.json(products);
   } catch (err: any) {
     if (err.message === "UNAUTHORIZED") {
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 });

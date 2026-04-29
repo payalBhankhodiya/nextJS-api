@@ -15,3 +15,5 @@ npm install -D @types/bcryptjs
 npm install zod
 npm install prisma @prisma/client bcrypt jsonwebtoken cookies
 npm install -D @types/bcrypt @types/jsonwebtoken
+pnpm add sharp
+pnpm add -D @types/sharp

@@ -78,7 +78,21 @@ export async function PUT(
         description: data.description,
         price: data.price,
         stock: data.stock,
-        image: data.image,
+        images: data.imageIds
+          ? {
+              set: data.imageIds.map((imgId) => ({ id: imgId })),
+            }
+          : undefined,
+
+        categories: data.categoryIds
+          ? {
+              set: data.categoryIds.map((id) => ({ id })),
+            }
+          : undefined,
+      },
+      include: {
+        images: true,
+        categories: true,
       },
     });
 

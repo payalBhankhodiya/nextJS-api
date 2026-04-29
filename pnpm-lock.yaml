@@ -35,6 +35,9 @@ importers:
       pg:
         specifier: ^8.20.0
         version: 8.20.0
+      sharp:
+        specifier: ^0.34.5
+        version: 0.34.5
       zod:
         specifier: ^4.3.6
         version: 4.3.6
@@ -60,6 +63,9 @@ importers:
       '@types/react':
         specifier: ^19.2.14
         version: 19.2.14
+      '@types/sharp':
+        specifier: ^0.32.0
+        version: 0.32.0
       dotenv:
         specifier: ^17.4.2
         version: 17.4.2
@@ -561,6 +567,10 @@ packages:
 
   '@types/react@19.2.14':
     resolution: {integrity: sha512-ilcTH/UniCkMdtexkoCN0bI7pMcJDvmQFPvuPvmEaYA/NSfFTAgdUSLAoVjaRJm7+6PvcM+q1zYOwS4wTYMF9w==}
+
+  '@types/sharp@0.32.0':
+    resolution: {integrity: sha512-OOi3kL+FZDnPhVzsfD37J88FNeZh6gQsGcLc95NbeURRGvmSjeXiDcyWzF2o3yh/gQAUn2uhh/e+CPCa5nwAxw==}
+    deprecated: This is a stub types definition. sharp provides its own type definitions, so you do not need this installed.
 
   acorn-walk@8.3.5:
     resolution: {integrity: sha512-HEHNfbars9v4pgpW6SO1KSPkfoS0xVOM/9UzkJltjlsHZmJasxg8aXkuZa7SMf8vKGIBhpUsPluQSqhJFCqebw==}
@@ -1169,8 +1179,7 @@ snapshots:
     dependencies:
       hono: 4.12.14
 
-  '@img/colour@1.1.0':
-    optional: true
+  '@img/colour@1.1.0': {}
 
   '@img/sharp-darwin-arm64@0.34.5':
     optionalDependencies:
@@ -1501,6 +1510,10 @@ snapshots:
     dependencies:
       csstype: 3.2.3
 
+  '@types/sharp@0.32.0':
+    dependencies:
+      sharp: 0.34.5
+
   acorn-walk@8.3.5:
     dependencies:
       acorn: 8.16.0
@@ -1593,8 +1606,7 @@ snapshots:
 
   destr@2.0.5: {}
 
-  detect-libc@2.1.2:
-    optional: true
+  detect-libc@2.1.2: {}
 
   diff@4.0.4: {}
 
@@ -1927,7 +1939,6 @@ snapshots:
       '@img/sharp-win32-arm64': 0.34.5
       '@img/sharp-win32-ia32': 0.34.5
       '@img/sharp-win32-x64': 0.34.5
-    optional: true
 
   shebang-command@2.0.0:
     dependencies:
