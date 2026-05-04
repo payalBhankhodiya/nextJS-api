@@ -21,6 +21,7 @@ model User {
 
   orders Order[]
   addresses Address[]
+  cart Cart?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -65,6 +66,7 @@ model Product {
   categories  Category[] @relation("ProductCategories")
 
   orders Order[]
+  cartItems CartItem[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -108,6 +110,36 @@ model Order {
   @@map("orders") 
 }
 
+model Cart {
+  id     String @id @default(uuid())
+  userId String @unique
+
+  user  User       @relation(fields: [userId], references: [id])
+  items CartItem[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("carts")
+}
+
+model CartItem {
+  id        String @id @default(uuid())
+
+  cartId    String
+  productId String
+
+  quantity  Int
+
+  cart     Cart    @relation(fields: [cartId], references: [id])
+  product  Product @relation(fields: [productId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([cartId, productId]) // prevent duplicates
+  @@map("cart_items")
+}
 
 model Category {
   id        String     @id @default(uuid())
