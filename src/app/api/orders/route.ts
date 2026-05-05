@@ -24,27 +24,14 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const { productId, addressId, quantity } = result.data;
+    const { addressId, items } = result.data;
 
     const userId = currentUser.userId;
 
-    // check user + product + address in parallel
-    const [user, product, address] = await Promise.all([
-      prisma.user.findUnique({ where: { id: userId } }),
-      prisma.product.findUnique({ where: { id: productId } }),
-      prisma.address.findUnique({ where: { id: addressId } }),
-    ]);
-
-    if (!user) {
-      return NextResponse.json({ message: "User not found" }, { status: 404 });
-    }
-
-    if (!product) {
-      return NextResponse.json(
-        { message: "Product not found" },
-        { status: 404 },
-      );
-    }
+    // fetch address
+    const address = await prisma.address.findUnique({
+      where: { id: addressId },
+    });
 
     if (!address) {
       return NextResponse.json(
@@ -53,36 +40,80 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // stock check
-    if (product.stock < quantity) {
-      return NextResponse.json(
-        { message: "Not enough stock" },
-        { status: 400 },
-      );
+    // fetch all products at once
+    const products = await prisma.product.findMany({
+      where: {
+        id: {
+          in: items.map((i) => i.productId),
+        },
+      },
+    });
+
+    // validate all items
+    for (const item of items) {
+      const product = products.find((p) => p.id === item.productId);
+
+      if (!product) {
+        return NextResponse.json(
+          { message: `Product not found: ${item.productId}` },
+          { status: 404 },
+        );
+      }
+
+      if (product.stock < item.quantity) {
+        return NextResponse.json(
+          { message: `Not enough stock for ${product.title}` },
+          { status: 400 },
+        );
+      }
     }
 
-    const total = product.price * quantity;
+    // calculate total
+    const total = items.reduce((sum, item) => {
+      const product = products.find((p) => p.id === item.productId)!;
+      return sum + product.price * item.quantity;
+    }, 0);
 
-    // atomic transaction
+    // transaction
     const order = await prisma.$transaction(async (tx) => {
       const newOrder = await tx.order.create({
         data: {
           userId,
-          productId,
           addressId,
-          quantity,
           total,
+          items: {
+            create: items.map((item) => {
+              const product = products.find((p) => p.id === item.productId)!;
+
+              return {
+                productId: item.productId,
+                quantity: item.quantity,
+                price: product.price,
+              };
+            }),
+          },
+        },
+        include: {
+          items: {
+            include: {
+              product: true,
+            },
+          },
+          address: true,
         },
       });
 
-      await tx.product.update({
-        where: { id: productId },
-        data: {
-          stock: {
-            decrement: quantity,
+      // update stock
+      for (const item of items) {
+        await tx.product.update({
+          where: { id: item.productId },
+          data: {
+            stock: {
+              decrement: item.quantity,
+            },
           },
-        },
-      });
+        });
+      }
 
       return newOrder;
     });
@@ -114,11 +145,29 @@ export async function GET(req: NextRequest) {
     let orders;
 
     if (currentUser.role === "ADMIN") {
-      orders = await prisma.order.findMany();
+      orders = await prisma.order.findMany({
+        include: {
+          items: {
+            include: {
+              product: true,
+            },
+          },
+          address: true,
+          user: true,
+        },
+      });
     } else {
       orders = await prisma.order.findMany({
         where: {
           userId: currentUser.userId,
+        },
+        include: {
+          items: {
+            include: {
+              product: true,
+            },
+          },
+          address: true,
         },
       });
     }
@@ -139,3 +188,4 @@ export async function GET(req: NextRequest) {
     );
   }
 }
+

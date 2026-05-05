@@ -15,7 +15,11 @@ export async function GET(
       where: { id: orderId },
       include: {
         user: true,
-        product: true,
+        items: {
+          include: {
+            product: true,
+          },
+        },
       },
     });
 
@@ -27,6 +31,11 @@ export async function GET(
       return NextResponse.json({ message: "Forbidden" }, { status: 403 });
     }
 
+    const computedTotal = order.items.reduce(
+      (sum, item) => sum + item.price * item.quantity,
+      0,
+    );
+
     const invoice = {
       invoiceId: "INV-" + order.id.slice(0, 6),
       customer: {
@@ -34,12 +43,14 @@ export async function GET(
         name: order.user.name,
         email: order.user.email,
       },
-      product: {
-        title: order.product.title,
-        price: order.product.price,
-      },
-      quantity: order.quantity,
-      total: order.total,
+      items: order.items.map((item) => ({
+        title: item.product.title,
+        price: item.price,
+        quantity: item.quantity,
+        subtotal: item.price * item.quantity,
+      })),
+
+      total: computedTotal,
       date: order.createdAt,
     };
 

@@ -13,6 +13,10 @@ export async function GET(
     const { id } = await params;
     const product = await prisma.product.findUnique({
       where: { id },
+      include: {
+        images: true,
+        categories: true,
+      },
     });
 
     if (!product) {
@@ -133,11 +137,33 @@ export async function DELETE(
       );
     }
 
-    const deleted = await prisma.product.delete({
-      where: { id },
+    // prevent deleting product used in orders
+    const usedInOrders = await prisma.orderItem.findFirst({
+      where: { productId: id },
     });
 
-    return NextResponse.json(deleted);
+    if (usedInOrders) {
+      return NextResponse.json(
+        { message: "Cannot delete product used in orders" },
+        { status: 400 },
+      );
+    }
+
+   await prisma.$transaction(async (tx) => {
+      // delete images first 
+      await tx.image.deleteMany({
+        where: { productId: id },
+      });
+
+      // delete product
+      await tx.product.delete({
+        where: { id },
+      });
+    });
+
+    return NextResponse.json({
+      message: "Product deleted successfully",
+    });
   } catch (err: any) {
     if (err.message === "UNAUTHORIZED") {
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
@@ -153,3 +179,4 @@ export async function DELETE(
     );
   }
 }
+

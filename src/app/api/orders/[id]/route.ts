@@ -17,7 +17,12 @@ export async function GET(
       where: { id },
       include: {
         user: true,
-        product: true,
+        address: true,
+        items: {
+          include: {
+            product: true,
+          },
+        },
       },
     });
 
@@ -80,8 +85,14 @@ export async function PUT(
 
     const updated = await prisma.order.update({
       where: { id },
-      data: {
-        status,
+      data: { status },
+      include: {
+        items: {
+          include: {
+            product: true,
+          },
+        },
+        address: true,
       },
     });
 
@@ -132,8 +143,14 @@ export async function DELETE(
       );
     }
 
-    await prisma.order.delete({
-      where: { id },
+    await prisma.$transaction(async (tx) => {
+      await tx.orderItem.deleteMany({
+        where: { orderId: id },
+      });
+
+      await tx.order.delete({
+        where: { id },
+      });
     });
 
     return NextResponse.json({
@@ -141,22 +158,18 @@ export async function DELETE(
     });
   } catch (err: any) {
     if (err.message === "UNAUTHORIZED") {
-      return NextResponse.json(
-        { message: "Unauthorized" },
-        { status: 401 }
-      );
+      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
     }
 
     if (err.message === "FORBIDDEN") {
-      return NextResponse.json(
-        { message: "Forbidden" },
-        { status: 403 }
-      );
+      return NextResponse.json({ message: "Forbidden" }, { status: 403 });
     }
 
     return NextResponse.json(
       { message: "Error deleting order" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
+
+
