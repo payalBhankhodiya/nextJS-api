@@ -103,6 +103,8 @@ model Order {
 
   items     OrderItem[]
 
+  payment   Payment?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -130,6 +132,23 @@ model OrderItem {
   @@map("order_items")
 }
 
+model Payment {
+  id              String   @id @default(uuid())
+
+  orderId         String   @unique
+  stripeSessionId String   @unique
+
+  amount          Float
+
+  status          PaymentStatus @default(PENDING)
+
+  order           Order @relation(fields: [orderId], references: [id])
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@map("payments")
+}
 
 model Cart {
   id     String @id @default(uuid())
@@ -190,7 +209,14 @@ enum OrderStatus {
   SHIPPED
   DELIVERED
   CANCELLED
+  RETURN_REQUESTED
+  RETURNED
 }
 
-
+enum PaymentStatus {
+  PENDING
+  PAID
+  FAILED
+  REFUNDED
+}
 
