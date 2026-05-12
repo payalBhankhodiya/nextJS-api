@@ -8,7 +8,9 @@ export function proxy(req: NextRequest) {
   if (
     pathname === "/api/auth/register" ||
     pathname === "/api/auth/login" ||
-    pathname.startsWith("/uploads")
+    pathname.startsWith("/uploads") ||
+     pathname.startsWith("/api/payments") ||
+    pathname.startsWith("/api/webhooks")
   ) {
     return NextResponse.next();
   }

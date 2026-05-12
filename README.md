@@ -18,3 +18,4 @@ npm install -D @types/bcrypt @types/jsonwebtoken
 pnpm add sharp
 pnpm add -D @types/sharp
 pnpm add sharp
+pnpm add stripe

@@ -30,7 +30,7 @@ export async function POST(req: NextRequest) {
 
     // fetch address
     const address = await prisma.address.findUnique({
-      where: { id: addressId },
+      where: { id: addressId, userId },
     });
 
     if (!address) {
@@ -188,4 +188,3 @@ export async function GET(req: NextRequest) {
     );
   }
 }
-
