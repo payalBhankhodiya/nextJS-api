@@ -105,6 +105,8 @@ model Order {
 
   payment   Payment?
 
+  trackingEvents OrderTracking[]
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -132,6 +134,22 @@ model OrderItem {
   @@map("order_items")
 }
 
+model OrderTracking {
+  id        String @id @default(uuid())
+
+  orderId   String
+  order     Order @relation(fields: [orderId], references: [id])
+
+  status    OrderStatus
+
+  message   String?
+  location  String?
+
+  createdAt DateTime @default(now())
+
+  @@index([orderId])
+  @@map("order_tracking")
+}
 model Payment {
   id              String   @id @default(uuid())
 
@@ -206,7 +224,10 @@ enum Role {
 enum OrderStatus {
   PENDING
   PAID
+  PROCESSING
+  PACKED
   SHIPPED
+  OUT_FOR_DELIVERY
   DELIVERED
   CANCELLED
   RETURN_REQUESTED
