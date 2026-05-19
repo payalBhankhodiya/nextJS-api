@@ -75,29 +75,51 @@ export async function PUT(
       );
     }
 
-    const updated = await prisma.product.update({
-      where: { id },
-      data: {
-        title: data.title,
-        description: data.description,
-        price: data.price,
-        stock: data.stock,
-        images: data.imageIds
-          ? {
-              set: data.imageIds.map((imgId) => ({ id: imgId })),
-            }
-          : undefined,
+    const newStock = data.stock ?? product.stock;
 
-        categories: data.categoryIds
-          ? {
-              set: data.categoryIds.map((id) => ({ id })),
-            }
-          : undefined,
-      },
-      include: {
-        images: true,
-        categories: true,
-      },
+    const stockDifference = newStock - product.stock;
+
+    const updated = await prisma.$transaction(async (tx) => {
+      const updatedProduct = await tx.product.update({
+        where: { id },
+
+        data: {
+          title: data.title,
+          description: data.description,
+          price: data.price,
+          stock: newStock,
+
+          images: data.imageIds
+            ? {
+                set: data.imageIds.map((imgId) => ({ id: imgId })),
+              }
+            : undefined,
+
+          categories: data.categoryIds
+            ? {
+                set: data.categoryIds.map((id) => ({ id })),
+              }
+            : undefined,
+        },
+
+        include: {
+          images: true,
+          categories: true,
+        },
+      });
+
+      if (stockDifference !== 0) {
+        await tx.inventoryLog.create({
+          data: {
+            productId: id,
+            type: "ADJUSTMENT",
+            quantity: stockDifference,
+            note: `Stock updated from ${product.stock} to ${newStock}`,
+          },
+        });
+      }
+
+      return updatedProduct;
     });
 
     return NextResponse.json(updated);
@@ -149,13 +171,15 @@ export async function DELETE(
       );
     }
 
-   await prisma.$transaction(async (tx) => {
-      // delete images first 
+    await prisma.$transaction(async (tx) => {
+      await tx.inventoryLog.deleteMany({
+        where: { productId: id },
+      });
+
       await tx.image.deleteMany({
         where: { productId: id },
       });
 
-      // delete product
       await tx.product.delete({
         where: { id },
       });
@@ -179,4 +203,3 @@ export async function DELETE(
     );
   }
 }
-

@@ -59,7 +59,11 @@ model Product {
   title       String
   description String?
   price       Float
-  stock       Int
+
+  sku         String? @unique
+  stock       Int @default(0)
+  
+  lowStockThreshold Int @default(5)
 
   images      Image[]
 
@@ -68,12 +72,31 @@ model Product {
   orderItems OrderItem[]
   cartItems CartItem[]
 
+  inventoryLogs InventoryLog[]
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@map("products") 
 }
 
+model InventoryLog {
+  id        String @id @default(uuid())
+
+  productId String
+  product   Product @relation(fields: [productId], references: [id])
+
+  type      InventoryType
+
+  quantity  Int
+
+  note      String?
+
+  createdAt DateTime @default(now())
+
+  @@index([productId])
+  @@map("inventory_logs")
+}
 model Image {
   id        String   @id @default(uuid())
   url       String
@@ -241,3 +264,11 @@ enum PaymentStatus {
   REFUNDED
 }
 
+enum InventoryType {
+  PURCHASE       
+  SALE            
+  RETURN          
+  CANCELLED_ORDER 
+  DAMAGE          
+  ADJUSTMENT     
+}

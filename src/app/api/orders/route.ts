@@ -103,14 +103,29 @@ export async function POST(req: NextRequest) {
         },
       });
 
-      // update stock
+      // update stock + create inventory logs
       for (const item of items) {
+        // decrement stock
         await tx.product.update({
           where: { id: item.productId },
+
           data: {
             stock: {
               decrement: item.quantity,
             },
+          },
+        });
+
+        // inventory log
+        await tx.inventoryLog.create({
+          data: {
+            productId: item.productId,
+
+            type: "SALE",
+
+            quantity: -item.quantity,
+
+            note: `Order ${newOrder.id} placed`,
           },
         });
       }
@@ -174,6 +189,7 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json(orders, { status: 200 });
   } catch (err: any) {
+    console.error("GET /orders error:", err);
     if (err.message === "UNAUTHORIZED") {
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
     }

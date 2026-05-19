@@ -2,10 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { NextRequest, NextResponse } from "next/server";
 import { requireRoles } from "@/lib/require-role";
 
-export async function PATCH(
-  req: NextRequest,
-  
-) {
+export async function PATCH(req: NextRequest) {
   try {
     const currentUser = await requireRoles(req, ["USER"]);
 
@@ -23,17 +20,19 @@ export async function PATCH(
     });
 
     if (!order) {
-      return NextResponse.json(
-        { message: "Order not found" },
-        { status: 404 }
-      );
+      return NextResponse.json({ message: "Order not found" }, { status: 404 });
     }
 
     // ownership check
     if (order.userId !== currentUser.userId) {
+      return NextResponse.json({ message: "Forbidden" }, { status: 403 });
+    }
+
+    // prevent duplicate requests first
+    if (order.status === "RETURN_REQUESTED") {
       return NextResponse.json(
-        { message: "Forbidden" },
-        { status: 403 }
+        { message: "Return already requested" },
+        { status: 400 },
       );
     }
 
@@ -41,7 +40,7 @@ export async function PATCH(
     if (order.status !== "DELIVERED") {
       return NextResponse.json(
         { message: "Only delivered orders can be returned" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -64,7 +63,7 @@ export async function PATCH(
 
     return NextResponse.json(
       { message: "Error returning order" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

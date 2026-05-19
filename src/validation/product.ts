@@ -5,6 +5,7 @@ export const createProductSchema = z.object({
   description: z.string().optional(),
   price: z.coerce.number().positive("Price must be > 0"),
   stock: z.coerce.number().int().nonnegative(),
+  sku: z.string().min(3),
   imageIds: z.array(z.uuid()).optional(),
   categoryIds: z.array(z.string()).optional(),
 });

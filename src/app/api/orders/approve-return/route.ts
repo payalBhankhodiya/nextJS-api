@@ -34,7 +34,7 @@ export async function PUT(req: NextRequest) {
     }
 
     const updatedOrder = await prisma.$transaction(async (tx) => {
-      // restore stock
+      // restore stock + inventory logs
       for (const item of order.items) {
         await tx.product.update({
           where: { id: item.productId },
@@ -44,9 +44,25 @@ export async function PUT(req: NextRequest) {
             },
           },
         });
+
+        await tx.inventoryLog.create({
+          data: {
+            productId: item.productId,
+            type: "RETURN",
+            quantity: item.quantity,
+            note: `Return approved for order ${orderId}`,
+          },
+        });
       }
 
-      // update order status
+      await tx.orderTracking.create({
+        data: {
+          orderId,
+          status: "RETURNED",
+          message: "Return approved by admin",
+        },
+      });
+
       return tx.order.update({
         where: { id: orderId },
         data: {
@@ -71,3 +87,6 @@ export async function PUT(req: NextRequest) {
     );
   }
 }
+
+
+

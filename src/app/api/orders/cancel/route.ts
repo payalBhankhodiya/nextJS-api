@@ -41,27 +41,55 @@ export async function PATCH(req: NextRequest) {
     }
 
     const updatedOrder = await prisma.$transaction(async (tx) => {
-      // restore stock
+      // restore stock + inventory logs
       for (const item of order.items) {
+        // restore stock
         await tx.product.update({
           where: { id: item.productId },
+
           data: {
             stock: {
               increment: item.quantity,
             },
           },
         });
+
+        // inventory log
+        await tx.inventoryLog.create({
+          data: {
+            productId: item.productId,
+
+            type: "CANCELLED_ORDER",
+
+            quantity: item.quantity,
+
+            note: `Order ${orderId} cancelled by customer`,
+          },
+        });
       }
 
       // update order status
-      return tx.order.update({
+      const updated = await tx.order.update({
         where: { id: orderId },
+
         data: {
           status: "CANCELLED",
         },
       });
-    });
 
+      // tracking history
+      await tx.orderTracking.create({
+        data: {
+          orderId,
+
+          status: "CANCELLED",
+
+          message: "Order cancelled by customer",
+        },
+      });
+
+      return updated;
+    });
     return NextResponse.json(updatedOrder, { status: 200 });
   } catch (err: any) {
     if (err.message === "UNAUTHORIZED") {

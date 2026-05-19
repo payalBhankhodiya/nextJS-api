@@ -83,18 +83,73 @@ export async function PUT(
       return NextResponse.json({ message: "Order not found" }, { status: 404 });
     }
 
-    const updated = await prisma.order.update({
-      where: { id },
-      data: { status },
-      include: {
-        items: {
-          include: {
-            product: true,
+   const updated = await prisma.$transaction(async (tx) => {
+  // fetch order items
+  const orderItems = await tx.orderItem.findMany({
+    where: { orderId: id },
+  });
+
+  // restore stock on cancellation
+  const shouldRestoreStock =
+    status === "CANCELLED" &&
+    order.status !== "CANCELLED";
+
+  // restore stock on return
+  const shouldHandleReturn =
+    status === "RETURNED" &&
+    order.status !== "RETURNED";
+
+  if (shouldRestoreStock || shouldHandleReturn) {
+    for (const item of orderItems) {
+      // restore stock
+      await tx.product.update({
+        where: { id: item.productId },
+
+        data: {
+          stock: {
+            increment: item.quantity,
           },
         },
-        address: true,
+      });
+
+      // inventory log
+      await tx.inventoryLog.create({
+        data: {
+          productId: item.productId,
+
+          type: shouldRestoreStock
+            ? "CANCELLED_ORDER"
+            : "RETURN",
+
+          quantity: item.quantity,
+
+          note: shouldRestoreStock
+            ? `Order ${id} cancelled`
+            : `Order ${id} returned`,
+        },
+      });
+    }
+  }
+
+  // update order status
+  const updatedOrder = await tx.order.update({
+    where: { id },
+
+    data: { status },
+
+    include: {
+      items: {
+        include: {
+          product: true,
+        },
       },
-    });
+
+      address: true,
+    },
+  });
+
+  return updatedOrder;
+});
 
     return NextResponse.json(updated);
   } catch (err: any) {

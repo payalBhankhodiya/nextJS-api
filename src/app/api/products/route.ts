@@ -23,23 +23,45 @@ export async function POST(req: NextRequest) {
 
     const data = result.data;
 
-    const product = await prisma.product.create({
-      data: {
-        title: data.title,
-        description: data.description ?? null,
-        price: data.price,
-        stock: data.stock,
-        images: {
-          connect: data.imageIds?.map((id) => ({ id })) || [],
+    const product = await prisma.$transaction(async (tx) => {
+      // Create product
+      const createdProduct = await tx.product.create({
+        data: {
+          title: data.title,
+          description: data.description ?? null,
+          price: data.price,
+          stock: data.stock,
+
+          sku: data.sku,
+
+          images: {
+            connect: data.imageIds?.map((id) => ({ id })) || [],
+          },
+
+          categories: {
+            connect: data.categoryIds?.map((id) => ({ id })) || [],
+          },
         },
-        categories: {
-          connect: data.categoryIds?.map((id) => ({ id })) || [],
+
+        include: {
+          categories: true,
+          images: true,
         },
-      },
-      include: {
-        categories: true,
-        images: true,
-      },
+      });
+
+      // Create initial inventory log
+      if (data.stock > 0) {
+        await tx.inventoryLog.create({
+          data: {
+            productId: createdProduct.id,
+            type: "PURCHASE",
+            quantity: data.stock,
+            note: "Initial stock added",
+          },
+        });
+      }
+
+      return createdProduct;
     });
 
     return NextResponse.json(product, { status: 201 });
@@ -114,3 +136,8 @@ export async function GET(req: NextRequest) {
     );
   }
 }
+
+
+
+
+

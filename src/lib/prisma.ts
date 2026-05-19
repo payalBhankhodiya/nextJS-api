@@ -6,11 +6,11 @@ const connectionString = `${process.env.DATABASE_URL}`;
 
 const adapter = new PrismaPg({ connectionString });
 const prisma = new PrismaClient({
-  omit: {
-    user: {
-      password: true,
-    },
-  },
+  // omit: {
+  //   user: {
+  //     password: true,
+  //   },
+  // },
   adapter,
 });
 
